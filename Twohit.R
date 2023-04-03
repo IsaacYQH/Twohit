@@ -1,5 +1,5 @@
-Twotrim <- function (X, Z, y, Kn = NULL, c1 = 5, HDIC_Type = "HDBIC", c2 = 2, 
-                     c3 = 2.01, c_n, intercept = TRUE) 
+Twotrim <- function (X, Z, y, KLn = NULL, KDn = NULL, c1 = 5, HDIC_Type = "HDBIC", 
+                     c2 = 2, c3 = 2.01, c_n = ?, intercept = TRUE) 
 {
 ###############################1.First step Ohit################################
   
@@ -17,19 +17,19 @@ Twotrim <- function (X, Z, y, Kn = NULL, c1 = 5, HDIC_Type = "HDBIC", c2 = 2,
     stop("the sample size should be greater than 1")
   
   ##################################1.1.OGA_L###################################
-  if (is.null(Kn)) 
-    K = max(1, min(floor(c1 * sqrt(n/log(pL))), pL))
+  if (is.null(KLn)) 
+    KLn = max(1, min(floor(c1 * sqrt(n/log(pL))), pL))
   else {
-    if ((Kn < 1) | (Kn > pL)) 
-      stop(paste("Kn should between 1 and ", pL, sep = ""))
-    if ((Kn - floor(Kn)) != 0) 
-      stop("Kn should be a positive integer")
-    K = Kn
+    if ((KLn < 1) | (KLn > pL)) 
+      stop(paste("KLn should between 1 and ", pL, sep = ""))
+    if ((KLn - floor(KLn)) != 0) 
+      stop("KLn should be a positive integer")
+    # K = KLn
   }
   dy = y - mean(y)
   dX = apply(X, 2, function(x) x - mean(x))
-  Jhat = sigma2hat = rep(0, K)
-  XJhat = matrix(0, n, K)
+  Jhat = sigma2hat = rep(0, KLn)
+  XJhat = matrix(0, n, KLn)
   RL = as.matrix(dy)
   xnorms = sqrt(colSums((dX)^2))
   aSSE = (abs(t(RL) %*% dX)/xnorms)
@@ -37,8 +37,8 @@ Twotrim <- function (X, Z, y, Kn = NULL, c1 = 5, HDIC_Type = "HDBIC", c2 = 2,
   XJhat[, 1] = (dX[, Jhat[1]]/sqrt(sum((dX[, Jhat[1]])^2)))
   RL = RL - XJhat[, 1] %*% t(XJhat[, 1]) %*% RL
   sigma2hat[1] = mean(RL^2)
-  if (K > 1) {
-    for (k in 2:K) {
+  if (KLn > 1) {
+    for (k in 2:KLn) {
       aSSE = (abs(t(RL) %*% dX)/xnorms)
       aSSE[Jhat[1:(k - 1)]] = 0
       Jhat[k] = which.max(aSSE)
@@ -61,27 +61,27 @@ Twotrim <- function (X, Z, y, Kn = NULL, c1 = 5, HDIC_Type = "HDBIC", c2 = 2,
     omega_n = log(n)
   if (HDIC_Type == "HDHQ") 
     omega_n = c3 * log(log(n))
-  hdic = (n * log(sigma2hat)) + ((1:K) * omega_n * (log(pL)))
-  kn_hat = which.min(hdic)
-  benchmark = hdic[kn_hat]
+  hdic = (n * log(sigma2hat)) + ((1:KLn) * omega_n * (log(pL)))
+  kln_hat = which.min(hdic)
+  benchmark = hdic[kln_hat]
   # Outpue of HDIC
-  J_HDIC = sort(Jhat[1:kn_hat])
+  J_HDIC = sort(Jhat[1:kln_hat])
   
   ##################################1.3.Trim_L##################################
   # Initialize output of Trim
-  J_Trim = Jhat[1:kn_hat]
-  trim_pos = rep(0, kn_hat)
-  if (kn_hat > 1) {
-    for (l in 1:(kn_hat - 1)) {
+  J_Trim = Jhat[1:kln_hat]
+  trim_pos = rep(0, kln_hat)
+  if (kln_hat > 1) {
+    for (l in 1:(kln_hat - 1)) {
       JDrop1 = J_Trim[-l]
       fit = lm(dy ~ . - 1, data = data.frame(dX[, JDrop1]))
       RLDrop1 = fit$residuals
-      HDICDrop1 = (n * log(mean(RLDrop1^2))) + ((kn_hat - 
+      HDICDrop1 = (n * log(mean(RLDrop1^2))) + ((kln_hat - 
                                                   1) * omega_n * (log(pL)))
       if (HDICDrop1 > benchmark) 
         trim_pos[l] = 1
     }
-    trim_pos[kn_hat] = 1
+    trim_pos[kln_hat] = 1
     J_Trim = J_Trim[which(trim_pos == 1)]
   }
   # Outpue of Trim
@@ -115,8 +115,7 @@ Twotrim <- function (X, Z, y, Kn = NULL, c1 = 5, HDIC_Type = "HDBIC", c2 = 2,
   proj <- A %*% solve(t(A) %*% A) %*% t(A)
   eta_hat2 <- ((diag(1,n) - proj) %*% dy)^2
   eta_tilde2 <- apply(rbind(dy, rep(c_n,length(dy))), 2, function(x) max(x))
-  r_t <- log(eta_tilde2)
-  dr <- r_t - mean(r_t)
+  r <- log(eta_tilde2)
   
 ##############################2.Second step Ohit################################
   
@@ -125,34 +124,34 @@ Twotrim <- function (X, Z, y, Kn = NULL, c1 = 5, HDIC_Type = "HDBIC", c2 = 2,
     stop("Z should be a matrix")
   n = nrow(Z)
   pD = ncol(Z)
-  if (n != length(y)) 
-    stop("the number of observations in y is not equal to the number of rows of Z")
+  if (n != length(r)) 
+    stop("the number of observations in r is not equal to the number of rows of Z")
   if (n == 1) 
     stop("the sample size should be greater than 1")
   
   ##################################2.1.OGA_D###################################
-  if (is.null(Kn)) 
-    K = max(1, min(floor(c1 * sqrt(n/log(pD))), pD))
+  if (is.null(KDn)) 
+    KDn = max(1, min(floor(c1 * sqrt(n/log(pD))), pD))
   else {
-    if ((Kn < 1) | (Kn > pD)) 
-      stop(paste("Kn should between 1 and ", pD, sep = ""))
-    if ((Kn - floor(Kn)) != 0) 
-      stop("Kn should be a positive integer")
-    K = Kn
+    if ((KDn < 1) | (KDn > pD)) 
+      stop(paste("KDn should between 1 and ", pD, sep = ""))
+    if ((KDn - floor(KDn)) != 0) 
+      stop("KDn should be a positive integer")
+    # K = KDn
   }
-  dy = y - mean(y)
+  dr = r - mean(r)
   dZ = apply(Z, 2, function(x) x - mean(x))
-  Jhat = sigma2hat = rep(0, K)
-  ZJhat = matrix(0, n, K)
-  RD = as.matrix(dy)
+  Jhat = sigma2hat = rep(0, KDn)
+  ZJhat = matrix(0, n, KDn)
+  RD = as.matrix(dr)
   znorms = sqrt(colSums((dZ)^2))
   aSSE = (abs(t(RD) %*% dZ)/znorms)
   Jhat[1] = which.max(aSSE)
   ZJhat[, 1] = (dZ[, Jhat[1]]/sqrt(sum((dZ[, Jhat[1]])^2)))
   RD = RD - ZJhat[, 1] %*% t(ZJhat[, 1]) %*% RD
   sigma2hat[1] = mean(RD^2)
-  if (K > 1) {
-    for (k in 2:K) {
+  if (KDn > 1) {
+    for (k in 2:KDn) {
       aSSE = (abs(t(RD) %*% dZ)/znorms)
       aSSE[Jhat[1:(k - 1)]] = 0
       Jhat[k] = which.max(aSSE)
@@ -175,27 +174,27 @@ Twotrim <- function (X, Z, y, Kn = NULL, c1 = 5, HDIC_Type = "HDBIC", c2 = 2,
     omega_n = log(n)
   if (HDIC_Type == "HDHQ") 
     omega_n = c3 * log(log(n))
-  hdic = (n * log(sigma2hat)) + ((1:K) * omega_n * (log(pD)))
-  kn_hat = which.min(hdic)
-  benchmark = hdic[kn_hat]
+  hdic = (n * log(sigma2hat)) + ((1:KDn) * omega_n * (log(pD)))
+  kdn_hat = which.min(hdic)
+  benchmark = hdic[kdn_hat]
   # Outpue of HDIC
-  J_HDIC = sort(Jhat[1:kn_hat])
+  J_HDIC = sort(Jhat[1:kdn_hat])
   
   ##################################2.3.Trim_D##################################
   # Initialize output of Trim
-  J_Trim = Jhat[1:kn_hat]
-  trim_pos = rep(0, kn_hat)
-  if (kn_hat > 1) {
-    for (l in 1:(kn_hat - 1)) {
+  J_Trim = Jhat[1:kdn_hat]
+  trim_pos = rep(0, kdn_hat)
+  if (kdn_hat > 1) {
+    for (l in 1:(kdn_hat - 1)) {
       JDrop1 = J_Trim[-l]
-      fit = lm(dy ~ . - 1, data = data.frame(dZ[, JDrop1]))
+      fit = lm(dr ~ . - 1, data = data.frame(dZ[, JDrop1]))
       RDDrop1 = fit$residuals
-      HDICDrop1 = (n * log(mean(RDDrop1^2))) + ((kn_hat - 
+      HDICDrop1 = (n * log(mean(RDDrop1^2))) + ((kdn_hat - 
                                                   1) * omega_n * (log(pD)))
       if (HDICDrop1 > benchmark) 
         trim_pos[l] = 1
     }
-    trim_pos[kn_hat] = 1
+    trim_pos[kdn_hat] = 1
     J_Trim = J_Trim[which(trim_pos == 1)]
   }
   # Outpue of Trim
@@ -220,7 +219,8 @@ Twotrim <- function (X, Z, y, Kn = NULL, c1 = 5, HDIC_Type = "HDBIC", c2 = 2,
   
   
   
-  return(list(n = n, p = p, Kn = K, J_OGA = Jhat, HDIC = hdic, 
+  return(list(n = n, pL = pL, pD = pD, KLn = KLn, KDn = KDn, J_OGA = Jhat, 
+              HDIC = hdic, 
               J_HDIC = J_HDIC, J_Trim = J_Trim, betahat_HDIC = betahat_HDIC, 
               betahat_Trim = betahat_Trim))
 }
