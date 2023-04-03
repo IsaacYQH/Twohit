@@ -1,5 +1,5 @@
 Twotrim <- function (X, Z, y, Kn = NULL, c1 = 5, HDIC_Type = "HDBIC", c2 = 2, 
-                     c3 = 2.01, intercept = TRUE) 
+                     c3 = 2.01, c_n, intercept = TRUE) 
 {
 ###############################1.First step Ohit################################
   
@@ -103,6 +103,20 @@ Twotrim <- function (X, Z, y, Kn = NULL, c1 = 5, HDIC_Type = "HDBIC", c2 = 2,
   }
   betahat_HDIC = summary(fit_HDIC)
   betahat_Trim = summary(fit_Trim)
+
+  #############################1.4.Obtain residuals#############################
+  # projection matrix H_{L,\hat{N}_{L,n}}
+  if (intercept == TRUE) {
+    A <- cbind(matrix(1,n,1), dX[, result[["J_Trim"]]])
+  }
+  else {
+    A <- dX[, result[["J_Trim"]]]
+  }
+  proj <- A %*% solve(t(A) %*% A) %*% t(A)
+  eta_hat2 <- ((diag(1,n) - proj) %*% dy)^2
+  eta_tilde2 <- apply(rbind(dy, rep(c_n,length(dy))), 2, function(x) max(x))
+  r_t <- log(eta_tilde2)
+  dr <- r_t - mean(r_t)
   
 ##############################2.Second step Ohit################################
   
